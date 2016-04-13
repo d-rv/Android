@@ -1,18 +1,14 @@
 package mechatronics.demon.bb_2;
 
 
-import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Rect;
+import android.graphics.Path;
+import android.graphics.RectF;
 import android.view.MotionEvent;
 import android.view.View;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.ListView;
 
 /**
  * Created by Diamond Ravi on 4/8/2016.
@@ -26,8 +22,9 @@ public class DrawView extends View {
     int x, y;
     final private int P_ROBOT = 30, L_ROBOT = 90;
     final private int X_MID = 300, Y_MID = 435;
-    Rect rect;
+    RectF rect;
     String posStr = null;
+    float rectRotation;
 
     public DrawView(Context context) {
         super(context);
@@ -49,14 +46,17 @@ public class DrawView extends View {
         textPaint.setColor(Color.LTGRAY);
 
         transPaint.setAntiAlias(true);
-        transPaint.setColor(Color.BLACK);
+        transPaint.setColor(Color.parseColor("#FFFFDA44"));
         transPaint.setAlpha(100);
+
         //rectangle
-        rect = new Rect(X_MID - (L_ROBOT / 2), Y_MID - (P_ROBOT / 2),
+        rect = new RectF(X_MID - (L_ROBOT / 2), Y_MID - (P_ROBOT / 2),
                 X_MID + 1 + (L_ROBOT / 2), Y_MID + 1 + (P_ROBOT / 2));
 
         x = X_MID;
         y = Y_MID;
+
+        rectRotation = 0f;
     }
 
     public void setPos(int x, int y) {
@@ -73,7 +73,11 @@ public class DrawView extends View {
     }
 
     public String getPosStr(){
-        return this.posStr;
+        return posStr;
+    }
+
+    public void setRotation(float degree){
+        rectRotation = degree;
     }
 
     @Override
@@ -88,7 +92,7 @@ public class DrawView extends View {
 
     @Override
     public void onDraw(Canvas canvas) {
-
+        super.onDraw(canvas);
         if(x > 0 && y > 0) {
             int x_text = x, y_text;
             if (y < 60 || (y > Y_MID && y < 852 )){
@@ -105,15 +109,19 @@ public class DrawView extends View {
                 textPaint.setTextAlign(Paint.Align.CENTER);
             }
 
-            posStr = "(" + (x-X_MID) + ", " + ((Y_MID-y)) + ")";
+            posStr = "" + rectRotation;
+            //posStr = "(" + (x-X_MID) + ", " + ((Y_MID-y)) + ")";
             canvas.drawLine(X_MID, Y_MID, x, y, linePaint);
             canvas.drawCircle(x, y, 16, transPaint);
             canvas.drawCircle(x, y, 12, circlePaint);
             canvas.drawText(posStr, x_text, y_text, textPaint);
         }
-        canvas.drawCircle(X_MID, Y_MID, 30, circlePaint);
-        //canvas.drawRect(rect, circlePaint);
+
+
+        //draw rotated rectangle
+        canvas.rotate(rectRotation, X_MID, Y_MID);
+        canvas.drawRect(rect, circlePaint);
+        canvas.rotate(-rectRotation, X_MID, Y_MID);
 
     }
-
 }

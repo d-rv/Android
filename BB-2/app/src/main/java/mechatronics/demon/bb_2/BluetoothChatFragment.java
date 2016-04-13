@@ -3,7 +3,12 @@ package mechatronics.demon.bb_2;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.content.Context;
 import android.content.Intent;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -24,7 +29,7 @@ import android.widget.Toast;
 /**
  * Created by Diamond Ravi on 4/11/2016.
  */
-public class BluetoothChatFragment extends Fragment {
+public class BluetoothChatFragment extends Fragment implements SensorEventListener{
 
     private static final String TAG = "BluetoothChatFragment";
 
@@ -56,6 +61,9 @@ public class BluetoothChatFragment extends Fragment {
      */
     private BluetoothChatService mChatService = null;
 
+    // device sensor manager
+    private SensorManager mSensorManager;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -69,6 +77,7 @@ public class BluetoothChatFragment extends Fragment {
             Toast.makeText(activity, "Bluetooth is not available", Toast.LENGTH_LONG).show();
             activity.finish();
         }
+        mSensorManager = (SensorManager) getActivity().getSystemService(Context.SENSOR_SERVICE);
     }
 
 
@@ -97,7 +106,6 @@ public class BluetoothChatFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-
         // Performing this check in onResume() covers the case in which BT was
         // not enabled during onStart(), so we were paused to enable it...
         // onResume() will be called when ACTION_REQUEST_ENABLE activity returns.
@@ -111,11 +119,21 @@ public class BluetoothChatFragment extends Fragment {
     }
 
     @Override
+    public void onPause() {
+        super.onPause();
+
+        // to stop the listener and save battery
+        mSensorManager.unregisterListener(this);
+    }
+
+    @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-        drawView  = new DrawView(getContext());
+        mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
+                SensorManager.SENSOR_DELAY_GAME);
+        drawView = new DrawView(getContext());
         drawView.setBackgroundColor(R.color.colorPrimaryDark);
-        drawView.setOnTouchListener(new View.OnTouchListener(){
+        drawView.setOnTouchListener(new View.OnTouchListener() {
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_MOVE) {
                     int x_bot = (int) event.getX() > 12 && (int) event.getX() < 586 ?
@@ -126,13 +144,25 @@ public class BluetoothChatFragment extends Fragment {
                     drawView.invalidate();
                 }
 
-                if(event.getAction() == MotionEvent.ACTION_UP){
+                if (event.getAction() == MotionEvent.ACTION_UP) {
                     sendMessage(drawView.getPosStr());
                 }
                 return true;
             }
         });
         return (drawView);
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        float degree = Math.round(event.values[0]);
+
+        drawView.setRotation(degree);
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        // not in use
     }
 
    /**
