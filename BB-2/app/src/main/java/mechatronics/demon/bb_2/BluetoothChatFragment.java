@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
+import android.hardware.SensorEventListener2;
 import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -29,7 +30,7 @@ import android.widget.Toast;
 /**
  * Created by Diamond Ravi on 4/11/2016.
  */
-public class BluetoothChatFragment extends Fragment implements SensorEventListener{
+public class BluetoothChatFragment extends Fragment {
 
     private static final String TAG = "BluetoothChatFragment";
 
@@ -43,6 +44,13 @@ public class BluetoothChatFragment extends Fragment implements SensorEventListen
      */
     private String mConnectedDeviceName = null;
 
+    private Sensor gsensor;
+    private Sensor msensor;
+    private float[] mGravity = new float[3];
+    private float[] mGeomagnetic = new float[3];
+    private float azimuth = 0f;
+    private float currectAzimuth = 0;
+    private static SensorManager sensorManager;
     private DrawView drawView = null;
 
 
@@ -61,8 +69,6 @@ public class BluetoothChatFragment extends Fragment implements SensorEventListen
      */
     private BluetoothChatService mChatService = null;
 
-    // device sensor manager
-    private SensorManager mSensorManager;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -77,7 +83,6 @@ public class BluetoothChatFragment extends Fragment implements SensorEventListen
             Toast.makeText(activity, "Bluetooth is not available", Toast.LENGTH_LONG).show();
             activity.finish();
         }
-        mSensorManager = (SensorManager) getActivity().getSystemService(Context.SENSOR_SERVICE);
     }
 
 
@@ -116,54 +121,128 @@ public class BluetoothChatFragment extends Fragment implements SensorEventListen
                 mChatService.start();
             }
         }
+
+        sensorManager = (SensorManager) getContext().getSystemService(Context.SENSOR_SERVICE);
+        gsensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        msensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        sensorManager.registerListener(mySensorEventListener, gsensor, SensorManager.SENSOR_DELAY_GAME);
+        sensorManager.registerListener(mySensorEventListener, msensor,SensorManager.SENSOR_DELAY_GAME);
+
     }
 
     @Override
     public void onPause() {
         super.onPause();
-
+        sensorManager.unregisterListener(mySensorEventListener);
         // to stop the listener and save battery
-        mSensorManager.unregisterListener(this);
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-        mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
-                SensorManager.SENSOR_DELAY_GAME);
+
         drawView = new DrawView(getContext());
         drawView.setBackgroundColor(R.color.colorPrimaryDark);
         drawView.setOnTouchListener(new View.OnTouchListener() {
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_MOVE) {
-                    int x_bot = (int) event.getX() > 12 && (int) event.getX() < 586 ?
-                            (int) event.getX() : drawView.getViewX();
-                    int y_bot = (int) event.getY() > 14 && (int) event.getY() < 882 ?
-                            (int) event.getY() : drawView.getViewY();
+                    int x_bot = (int) event.getX();
+                    int y_bot = (int) event.getY();
+
+                    if (x_bot < 15) {
+                        x_bot = 15;
+                    } else if (x_bot > 584) {
+                        x_bot = 584;
+                    }
+
+                    if (y_bot < 15) {
+                        y_bot = 15;
+                    } else if (y_bot > 584) {
+                        y_bot = 584;
+                    }
                     drawView.setPos(x_bot, y_bot);
                     drawView.invalidate();
                 }
-
                 if (event.getAction() == MotionEvent.ACTION_UP) {
                     sendMessage(drawView.getPosStr());
                 }
                 return true;
             }
         });
+
         return (drawView);
     }
 
-    @Override
-    public void onSensorChanged(SensorEvent event) {
-        float degree = Math.round(event.values[0]);
+    private SensorEventListener mySensorEventListener = new SensorEventListener() {
 
-        drawView.setRotation(degree);
-    }
+        @Override
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        }
 
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-        // not in use
-    }
+//        @Override
+//        public void onSensorChanged(SensorEvent event) {
+//            // angle between the magnetic north direction
+//            // 0=North, 90=East, 180=South, 270=West
+//            float azimuth = event.values[0];
+//
+//        }
+
+        @Override
+        public void onSensorChanged(SensorEvent event) {
+            final float alpha = 0.95f;
+            if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+                mGravity[0] = alpha * mGravity[0] + (1 - alpha)
+                        * event.values[0];
+                mGravity[1] = alpha * mGravity[1] + (1 - alpha)
+                        * event.values[1];
+                mGravity[2] = alpha * mGravity[2] + (1 - alpha)
+                        * event.values[2];
+
+                // mGravity = event.values;
+
+                // Log.e(TAG, Float.toString(mGravity[0]));
+            }
+
+            if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+                // mGeomagnetic = event.values;
+
+                mGeomagnetic[0] = alpha * mGeomagnetic[0] + (1 - alpha)
+                        * event.values[0];
+                mGeomagnetic[1] = alpha * mGeomagnetic[1] + (1 - alpha)
+                        * event.values[1];
+                mGeomagnetic[2] = alpha * mGeomagnetic[2] + (1 - alpha)
+                        * event.values[2];
+                // Log.e(TAG, Float.toString(event.values[0]));
+
+            }
+
+            float R[] = new float[9];
+            float I[] = new float[9];
+            boolean success = SensorManager.getRotationMatrix(R, I, mGravity,
+                    mGeomagnetic);
+            if (success) {
+                float orientation[] = new float[3];
+                SensorManager.getOrientation(R, orientation);
+                // Log.d(TAG, "azimuth (rad): " + azimuth);
+                azimuth = (float) Math.toDegrees(orientation[0]); // orientation
+                azimuth = (azimuth + 360) % 360;
+                // Log.d(TAG, "azimuth (deg): " + azimuth);
+
+                drawView.setRotation((-azimuth));
+            }
+        }
+    };
+
+
+//    Handler viewHandler = new Handler();
+//    Runnable updateView = new Runnable(){
+//        @Override
+//        public void run(){
+//            drawView.invalidate();
+//            viewHandler.postDelayed(updateView, 500);
+//        }
+//    };
+
 
    /**
      * Set up the UI and background operations for chat.

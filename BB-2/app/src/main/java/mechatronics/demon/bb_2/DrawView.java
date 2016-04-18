@@ -7,24 +7,29 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
+import android.os.Handler;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.RotateAnimation;
 
 /**
  * Created by Diamond Ravi on 4/8/2016.
  */
 public class DrawView extends View {
 
-    Paint linePaint = new Paint();
-    Paint circlePaint = new Paint();
-    Paint textPaint = new Paint();
-    Paint transPaint = new Paint();
-    int x, y;
     final private int P_ROBOT = 30, L_ROBOT = 90;
-    final private int X_MID = 300, Y_MID = 435;
-    RectF rect;
-    String posStr = null;
-    float rectRotation;
+    final private int X_MID = 300, Y_MID = 300;
+
+    private Paint linePaint = new Paint();
+    private Paint circlePaint = new Paint();
+    private Paint textPaint = new Paint();
+    private Paint transPaint = new Paint();
+
+    private int x, y;
+    private RectF rect;
+    private String posStr = null;
+    private float rectRotation;
 
     public DrawView(Context context) {
         super(context);
@@ -78,24 +83,31 @@ public class DrawView extends View {
 
     public void setRotation(float degree){
         rectRotation = degree;
+        invalidate();
     }
 
     @Override
-    public boolean onTouchEvent(MotionEvent event){
-        this.invalidate();
-        if (event.getAction() == MotionEvent.ACTION_MOVE) {
-            x = (int) event.getX() > 12 && (int) event.getX() < 586 ? (int) event.getX() : x;
-            y = (int) event.getY() > 14 && (int) event.getY() < 882 ? (int) event.getY() : y;
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        int size = 0;
+        int width = getMeasuredWidth();
+        int height = getMeasuredHeight();
+
+        if (width > height) {
+            size = height;
+        } else {
+            size = width;
         }
-        return true;
+        setMeasuredDimension(size, size);
     }
+
 
     @Override
     public void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         if(x > 0 && y > 0) {
             int x_text = x, y_text;
-            if (y < 60 || (y > Y_MID && y < 852 )){
+            if (y < 60 || (y > Y_MID && y < 557 )){
                 y_text = y+40;
             } else {
                 y_text = y-30;
@@ -109,8 +121,7 @@ public class DrawView extends View {
                 textPaint.setTextAlign(Paint.Align.CENTER);
             }
 
-            posStr = "" + rectRotation;
-            //posStr = "(" + (x-X_MID) + ", " + ((Y_MID-y)) + ")";
+            posStr = "(" + (x-X_MID) + ", " + (Y_MID-y) + ")";
             canvas.drawLine(X_MID, Y_MID, x, y, linePaint);
             canvas.drawCircle(x, y, 16, transPaint);
             canvas.drawCircle(x, y, 12, circlePaint);
