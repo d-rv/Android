@@ -8,7 +8,6 @@ import android.content.Intent;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
-import android.hardware.SensorEventListener2;
 import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -24,6 +23,7 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 import android.widget.Toast;
 
 
@@ -49,9 +49,10 @@ public class BluetoothChatFragment extends Fragment {
     private float[] mGravity = new float[3];
     private float[] mGeomagnetic = new float[3];
     private float azimuth = 0f;
-    private float currectAzimuth = 0;
     private static SensorManager sensorManager;
     private DrawView drawView = null;
+
+    private TextView mTextView;
 
 
     /**
@@ -76,6 +77,7 @@ public class BluetoothChatFragment extends Fragment {
         setHasOptionsMenu(true);
         // Get local Bluetooth adapter
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        mTextView = (TextView) getActivity().findViewById(R.id.textView);
 
         // If the adapter is null, then Bluetooth is not supported
         if (mBluetoothAdapter == null) {
@@ -142,24 +144,12 @@ public class BluetoothChatFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
 
         drawView = new DrawView(getContext());
-        drawView.setBackgroundColor(R.color.colorPrimaryDark);
+        drawView.setBackgroundColor(0xFFCCCCCC);
         drawView.setOnTouchListener(new View.OnTouchListener() {
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_MOVE) {
                     int x_bot = (int) event.getX();
                     int y_bot = (int) event.getY();
-
-                    if (x_bot < 15) {
-                        x_bot = 15;
-                    } else if (x_bot > 584) {
-                        x_bot = 584;
-                    }
-
-                    if (y_bot < 15) {
-                        y_bot = 15;
-                    } else if (y_bot > 584) {
-                        y_bot = 584;
-                    }
                     drawView.setPos(x_bot, y_bot);
                     drawView.invalidate();
                 }
@@ -178,14 +168,6 @@ public class BluetoothChatFragment extends Fragment {
         @Override
         public void onAccuracyChanged(Sensor sensor, int accuracy) {
         }
-
-//        @Override
-//        public void onSensorChanged(SensorEvent event) {
-//            // angle between the magnetic north direction
-//            // 0=North, 90=East, 180=South, 270=West
-//            float azimuth = event.values[0];
-//
-//        }
 
         @Override
         public void onSensorChanged(SensorEvent event) {
@@ -233,23 +215,12 @@ public class BluetoothChatFragment extends Fragment {
         }
     };
 
-
-//    Handler viewHandler = new Handler();
-//    Runnable updateView = new Runnable(){
-//        @Override
-//        public void run(){
-//            drawView.invalidate();
-//            viewHandler.postDelayed(updateView, 500);
-//        }
-//    };
-
-
    /**
      * Set up the UI and background operations for chat.
      */
     private void setupChat() {
         Log.d(TAG, "setupChat()");
-
+        //TextView txtView = (TextView) getView().findViewById(R.id.textView);
         // Initialize the BluetoothChatService to perform bluetooth connections
         mChatService = new BluetoothChatService(getActivity(), mHandler);
 
@@ -321,6 +292,10 @@ public class BluetoothChatFragment extends Fragment {
                     byte[] readBuf = (byte[]) msg.obj;
                     // construct a string from the valid bytes in the buffer
                     String readMessage = new String(readBuf, 0, msg.arg1);
+                    String[] parts = readMessage.split(", ");
+                    int num = Integer.parseInt(parts[0]),den = Integer.parseInt(parts[1]);
+                    drawView.moveCursor(num,den);
+                    mTextView.setText(num + " " + den);
                     break;
                 case Constants.MESSAGE_DEVICE_NAME:
                     // save the connected device's name
@@ -413,5 +388,4 @@ public class BluetoothChatFragment extends Fragment {
         }
         return false;
     }
-
 }
