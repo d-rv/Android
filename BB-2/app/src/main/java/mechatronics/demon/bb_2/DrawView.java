@@ -5,11 +5,8 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Point;
 import android.graphics.RectF;
-import android.view.Display;
 import android.view.View;
-import android.view.WindowManager;
 
 /**
  * Created by Diamond Ravi on 4/8/2016.
@@ -82,6 +79,10 @@ public class DrawView extends View {
 
     public int getViewX(){
         return x;
+    }
+
+    public double getDirection (){
+        return Math.toDegrees(Math.atan(y/x));
     }
 
     public int getViewY(){

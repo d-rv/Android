@@ -51,7 +51,7 @@ public class BluetoothChatFragment extends Fragment {
     private float azimuth = 0f;
     private static SensorManager sensorManager;
     private DrawView drawView = null;
-
+    String serialText = "";
     private TextView mTextView;
 
 
@@ -270,8 +270,25 @@ public class BluetoothChatFragment extends Fragment {
     private final Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
-            FragmentActivity activity = getActivity();
             switch (msg.what) {
+                case Constants.MESSAGE_READ:
+                    byte[] readBuf = (byte[]) msg.obj;
+                    // construct a string from the valid bytes in the buffer
+                    String readMessage = new String(readBuf, 0, msg.arg1);
+                    serialText = readMessage;
+                    mTextView.setText(serialText);
+//                    if (serialText.length() > 500){
+//                        serialText = "";
+//                    }
+//                    try {
+//                        String[] parts = readMessage.split(", ");
+//                        int num = Integer.parseInt(parts[0]), den = Integer.parseInt(parts[1]);
+//                        drawView.moveCursor(num, den);
+//                        mTextView.setText(num + " " + den);
+//                    } catch (Exception e){
+//                        Toast.makeText(activity, "ERROR! Data is invalid: " + readMessage, Toast.LENGTH_SHORT).show();
+//                    }
+                    break;
                 case Constants.MESSAGE_STATE_CHANGE:
                     switch (msg.arg1) {
                         case BluetoothChatService.STATE_CONNECTED:
@@ -288,17 +305,9 @@ public class BluetoothChatFragment extends Fragment {
                     // construct a string from the buffer
                     String writeMessage = new String(writeBuf);
                     break;
-                case Constants.MESSAGE_READ:
-                    byte[] readBuf = (byte[]) msg.obj;
-                    // construct a string from the valid bytes in the buffer
-                    String readMessage = new String(readBuf, 0, msg.arg1);
-                    String[] parts = readMessage.split(", ");
-                    int num = Integer.parseInt(parts[0]),den = Integer.parseInt(parts[1]);
-                    drawView.moveCursor(num,den);
-                    mTextView.setText(num + " " + den);
-                    break;
                 case Constants.MESSAGE_DEVICE_NAME:
                     // save the connected device's name
+                    FragmentActivity activity = getActivity();
                     mConnectedDeviceName = msg.getData().getString(Constants.DEVICE_NAME);
                     if (null != activity) {
                         Toast.makeText(activity, "Connected to "
@@ -306,8 +315,9 @@ public class BluetoothChatFragment extends Fragment {
                     }
                     break;
                 case Constants.MESSAGE_TOAST:
-                    if (null != activity) {
-                        Toast.makeText(activity, msg.getData().getString(Constants.TOAST),
+                    FragmentActivity activity2 = getActivity();
+                    if (null != activity2) {
+                        Toast.makeText(activity2, msg.getData().getString(Constants.TOAST),
                                 Toast.LENGTH_SHORT).show();
                     }
                     break;

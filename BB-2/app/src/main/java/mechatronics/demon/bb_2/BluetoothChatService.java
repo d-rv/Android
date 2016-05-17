@@ -6,11 +6,14 @@ import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
-
 import android.util.Log;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -46,6 +49,7 @@ public class BluetoothChatService {
     private ConnectThread mConnectThread;
     private ConnectedThread mConnectedThread;
     private int mState;
+    private Context context;
 
     // that indicate the current connection state
     public static final int STATE_NONE = 0;       // we're doing nothing
@@ -63,6 +67,7 @@ public class BluetoothChatService {
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         mState = STATE_NONE;
         mHandler = handler;
+        this.context=context;
     }
 
     /**
@@ -455,18 +460,81 @@ public class BluetoothChatService {
 
         public void run() {
             Log.i(TAG, "BEGIN mConnectedThread");
-            byte[] buffer = new byte[1024];
-            int bytes;
+            byte[] buffer = new byte[25];
+            int bytes, i = 1;
+
+            File log = new File(Environment.getExternalStorageDirectory(), "Log.csv");
+            BufferedWriter out = null;
+
+            int leftCounter = 0, rightCounter = 0;
+            float lateralAngle = 0, verticalAngle = 0;
 
             // Keep listening to the InputStream while connected
             while (true) {
                 try {
                     // Read from the InputStream
-                    bytes = mmInStream.read(buffer);
+                    if (mmInStream.available()>0) {
+                        buffer[0] = 0;
+                        while(buffer[0]!='#') {
+                            mmInStream.read(buffer, 0, 1);
+                        }
+                        bytes = mmInStream.read(buffer, 0 , 23);
+                        String readMessage = new String(buffer, 0, bytes);
+                        try {
+                            String[] parts = readMessage.split(",");
+                            if (parts.length != 4){
+                                throw new Exception("Data Incomplete");
+                            }
 
-                    // Send the obtained bytes to the UI Activity
-                    mHandler.obtainMessage(Constants.MESSAGE_READ, bytes, -1, buffer)
-                            .sendToTarget();
+                            try {
+                                if (out == null){
+                                    out = new BufferedWriter(new FileWriter(log.getAbsolutePath(), false));
+                                } else {
+                                    out = new BufferedWriter(new FileWriter(log.getAbsolutePath(), true));
+                                }
+                                //Log.i(log.getAbsolutePath(), "log.getAbsolutePath()");
+                                out.write(readMessage.toString());
+                                out.write("\n");
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error opening Log.", e);
+                            } finally {
+                                out.flush();
+                                out.close();
+                            }
+
+//                            leftCounter = Integer.parseInt(parts[0]);
+//                            rightCounter = Integer.parseInt(parts[1]);
+//                            lateralAngle = Float.valueOf(parts[2]);
+//                            verticalAngle = Float.valueOf(parts[3]);
+//
+//                            Log.i("some hardcoded tag", "A= " + leftCounter
+//                                    + "; B= " + rightCounter + "; C= " + lateralAngle
+//                                    + "; D= " + verticalAngle );
+
+                        } catch (Exception e){
+                            //Toast.makeText(activity, "ERROR! Data is invalid: " + readMessage, Toast.LENGTH_SHORT).show();
+                        }
+
+                        if (i == 200) {
+                            String[] parts = readMessage.split(",");
+                            leftCounter = Integer.parseInt(parts[0]);
+                            rightCounter = Integer.parseInt(parts[1]);
+                            lateralAngle = Float.valueOf(parts[2]);
+                            verticalAngle = Float.valueOf(parts[3]);
+
+                            String str = "L = " + leftCounter + "\nR = " + rightCounter
+                                    +  "\nO = " + lateralAngle + "\nV = " + verticalAngle;
+                            byte[] readBuf = str.getBytes();
+                            this.write(readBuf);
+
+                            // Send the obtained bytes to the UI Activity
+                            mHandler.obtainMessage(Constants.MESSAGE_READ, str.length(), -1, readBuf)
+                                    .sendToTarget();
+                            i = 1;
+                        }
+                        i++;
+                    }
+
                 } catch (IOException e) {
                     Log.e(TAG, "disconnected", e);
                     connectionLost();
